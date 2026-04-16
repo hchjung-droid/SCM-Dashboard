@@ -106,7 +106,7 @@ const S={
   costSort:{col:'costRatio',dir:'desc'},costFilter:'all',costBand:'all',costMonth:'current',riskSort:{col:'cr',dir:'desc'},
   selMonth:'all',selYear:'2026',selPeriodMode:'month',
   ordSort:{col:'date',dir:'desc'},ordFilterCol:'all',ordFilterVal:'all',
-  calFilter:'all',
+  calFilter:'all',catOutMode:'all',
   invSort:{col:'amount',dir:'desc'},invFilterCol:'all',invFilterVal:'all',
   salesSort:{col:'total_amt',dir:'desc'},taView:'amt',salesView:'amt',custSaleType:'all',purchPriceFilter:'all',priceVarFilter:'all',priceVarSku:null,priceVarBand:'all',
   bomDisc:{},
@@ -148,9 +148,9 @@ async function _initDashboard(){
 _initDashboard();
 
 // ========== CATEGORY MAPS ==========
-const C_CATS={KI:'키오스크',BF:'배리어프리',PO:'포스',TO:'테이블오더',SC:'출입인증기',CV:'담배토출기',SV:'스마트자판기',KD:'KDS',OT:'기타'};
-const B_CATS={KI:'키오스크',BF:'배리어프리',PO:'포스',TO:'테이블오더',SC:'출입인증기',CV:'담배토출기',SV:'스마트자판기',KD:'KDS',VA:'VAN 품목',BR:'브라켓',RD:'리더기',MP:'멀티패드',SP:'서명패드',PR:'프린터',TM:'단말기',ST:'스탠드',OT:'기타'};
-function getSkuCat(id){const base=id.length>=4?id.substring(2,4):'OT';if(base==='KI'){const p=id.split('-');const sf=p[p.length-1];if(sf.length>=3&&sf[2]==='8')return'BF'}return base}
+const C_CATS={KI:'키오스크',BK:'비버 키오스크',BF:'배리어프리',PO:'포스',TO:'테이블오더',SC:'출입인증기',CV:'담배토출기',SV:'스마트자판기',KD:'KDS',OT:'기타'};
+const B_CATS={KI:'키오스크',BK:'비버 키오스크',BF:'배리어프리',PO:'포스',TO:'테이블오더',SC:'출입인증기',CV:'담배토출기',SV:'스마트자판기',KD:'KDS',VA:'VAN 품목',BR:'브라켓',RD:'리더기',MP:'멀티패드',SP:'서명패드',PR:'프린터',TM:'단말기',ST:'스탠드',OT:'기타'};
+function getSkuCat(id){const base=id.length>=4?id.substring(2,4):'OT';if(base==='KI'){const p=id.split('-');const sf=p[p.length-1];if(sf.length>=3&&sf[2]==='8')return'BF';const size=id.length>=7?id.substring(4,7):'';if(size==='240')return'BK'}return base}
 
 // ========== UTILS ==========
 // 테이블 → CSV(Excel) 다운로드 (UTF-8 BOM 포함, 한글 정상)
@@ -457,6 +457,35 @@ function getCatOutbound(prefix, catMap, months){
   return result;
 }
 
+// 대분류별 출고 — 모드별 (전체/판매/구독렌탈할부)
+function getCatOutboundByMode(prefix, catMap, months, mode){
+  if(mode==='all') return getCatOutbound(prefix,catMap,months);
+  // 판매(유상): sales_tx amt>0 집계
+  const paid={};
+  Object.keys(catMap).forEach(cat=>{paid[cat]={total:0,monthly:{}};months.forEach(m=>{paid[cat].monthly[m]=0})});
+  (D.sales_tx||[]).forEach(tx=>{
+    if(!tx.sku_id||!tx.sku_id.startsWith(prefix+'-'))return;
+    if((tx.amt||0)<=0)return;
+    let cat=getSkuCat(tx.sku_id);if(!catMap[cat])cat='OT';
+    const mk=_dateToMonth(tx.date);
+    if(!mk||paid[cat].monthly[mk]===undefined)return;
+    const qty=tx.qty||0;
+    paid[cat].total+=qty;
+    paid[cat].monthly[mk]+=qty;
+  });
+  if(mode==='paid') return paid;
+  // 구독렌탈할부 = 전체 출고 - 유상판매
+  const total=getCatOutbound(prefix,catMap,months);
+  const rental={};
+  Object.keys(catMap).forEach(cat=>{
+    rental[cat]={total:Math.max(0,(total[cat]?total[cat].total:0)-(paid[cat]?paid[cat].total:0)),monthly:{}};
+    months.forEach(m=>{
+      rental[cat].monthly[m]=Math.max(0,((total[cat]?total[cat].monthly:{})[m]||0)-((paid[cat]?paid[cat].monthly:{})[m]||0));
+    });
+  });
+  return rental;
+}
+
 // MOQ 기반 발주필요 수량 계산
 function calcReorder(sku_id, currentQty){
   const ss=calcSS(sku_id);
@@ -696,9 +725,9 @@ function pgDash(){
   const healthWeighted=cntNormal*100+cntExcess2*60+cntNoDemand2*35+cntLow2*15+cntNoStock2*0;
   const healthScore=totalActive>0?Math.round(healthWeighted/(totalActive*100)*100):0;
 
-  // 대분류별 출고 집계
+  // 대분류별 출고 집계 (모드: 전체/판매/구독렌탈할부)
   const selMsForCat=getYearMonths(yr);
-  const cOut=getCatOutbound('C',C_CATS,selMsForCat);
+  const cOut=getCatOutboundByMode('C',C_CATS,selMsForCat,S.catOutMode);
   const bOut=getCatOutbound('B',B_CATS,selMsForCat);
 
   return`<div class="kpi-sticky"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -809,7 +838,12 @@ function pgDash(){
   <div class="pn" style="margin-bottom:16px"><div class="pt">재고 경고 추이 <span class="badge">${yr}년</span></div><div class="cc"><canvas id="cDashAlert" aria-label="재고 경고 추이 차트" role="img"></canvas></div></div>
   <div class="pn"><div class="pt">재고 회전율 추이 <span class="badge">${yr}년</span></div><div class="cc"><canvas id="cTurnover" aria-label="재고 회전율 추이 차트" role="img"></canvas></div></div>
   <div class="g2">
-    <div class="pn"><div class="pt">제품(C) 대분류별 출고추이 <span class="badge">${yr}년</span></div><div class="cc" style="height:280px"><canvas id="cCatC" aria-label="제품 대분류별 출고추이 차트" role="img"></canvas></div>
+    <div class="pn"><div class="pt" style="display:flex;align-items:center;gap:8px">제품(C) 대분류별 출고추이 <span class="badge">${yr}년</span>
+      <div style="margin-left:auto;display:flex;gap:4px">
+        <button onclick="S.catOutMode='all';render()" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--bd);cursor:pointer;background:${S.catOutMode==='all'?'var(--ac)':'var(--sf)'};color:${S.catOutMode==='all'?'#fff':'var(--tx)'}">전체</button>
+        <button onclick="S.catOutMode='paid';render()" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--bd);cursor:pointer;background:${S.catOutMode==='paid'?'var(--ac)':'var(--sf)'};color:${S.catOutMode==='paid'?'#fff':'var(--tx)'}">판매(유상)</button>
+        <button onclick="S.catOutMode='rental';render()" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--bd);cursor:pointer;background:${S.catOutMode==='rental'?'var(--ac)':'var(--sf)'};color:${S.catOutMode==='rental'?'#fff':'var(--tx)'}">구독렌탈할부</button>
+      </div></div><div class="cc" style="height:280px"><canvas id="cCatC" aria-label="제품 대분류별 출고추이 차트" role="img"></canvas></div>
       <div class="st" style="max-height:200px;margin-top:10px"><table><thead><tr><th>대분류</th>${selMsForCat.map(m=>'<th class="tr">'+m.slice(5)+'월</th>').join('')}<th class="tr" style="font-weight:700">합계</th></tr></thead>
       <tbody>${Object.entries(C_CATS).filter(([c])=>(cOut[c]||{}).total>0).map(([c,nm])=>'<tr onclick="openCatDetail(\''+c+'\')" class="clickable"><td><span class="tg tg-b">'+nm+'</span></td>'+selMsForCat.map(m=>'<td class="tr">'+(cOut[c].monthly[m]?fmt(cOut[c].monthly[m]):'-')+'</td>').join('')+'<td class="tr" style="font-weight:600">'+fmt(cOut[c].total)+'</td></tr>').join('')}
       <tr style="font-weight:700;border-top:2px solid var(--bd)"><td>합계</td>${selMsForCat.map(m=>'<td class="tr">'+fmt(Object.entries(C_CATS).reduce((s,[c])=>s+((cOut[c]||{}).monthly||{})[m]||0,0))+'</td>').join('')}<td class="tr">${fmt(Object.entries(C_CATS).reduce((s,[c])=>s+((cOut[c]||{}).total||0),0))}</td></tr></tbody></table></div>
@@ -3980,8 +4014,8 @@ function renderCharts(){
     // C 대분류 Stacked Bar
     const cCC=document.getElementById('cCatC');
     if(cCC){
-      const cats=Object.entries(C_CATS);const cColors=['#2563eb','#0e7490','#7e22ce','#c2410c','#15803d','#92400e','#dc2626','#475569','#9333ea'];
-      const catOutC=getCatOutbound('C',C_CATS,ms);
+      const cats=Object.entries(C_CATS);const cColors=['#2563eb','#0891b2','#7e22ce','#c2410c','#15803d','#92400e','#dc2626','#475569','#9333ea','#0e7490'];
+      const catOutC=getCatOutboundByMode('C',C_CATS,ms,S.catOutMode);
       const datasets=cats.filter(([c])=>(catOutC[c]||{}).total>0).map(([c,nm],idx)=>({
         label:nm,data:ms.map(m=>(catOutC[c]||{monthly:{}}).monthly[m]||0),backgroundColor:cColors[idx%cColors.length],borderRadius:2
       }));
