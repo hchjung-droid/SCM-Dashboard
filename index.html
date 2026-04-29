@@ -576,7 +576,9 @@ function sortArr(arr, col, dir, getter){
 function render(){
   const mainEl=document.querySelector('.main');
   const scrollTop=mainEl?mainEl.scrollTop:0;
-  document.getElementById('app').innerHTML=`${sidebar()}<div class="main" role="main">${page()}</div>${S.modal?renderModal():''}`;
+  const appEl=document.getElementById('app');
+  appEl.style.display='';
+  appEl.innerHTML=`${sidebar()}<div class="main" role="main">${page()}</div>${S.modal?renderModal():''}`;
   bindNav();bindA11y();renderCharts();
   const newMain=document.querySelector('.main');
   if(newMain&&scrollTop>0) newMain.scrollTop=scrollTop;

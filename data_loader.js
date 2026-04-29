@@ -482,6 +482,8 @@ function parseOrders(rows) {
     const dateNo = _s(row[0]);
     if (!dateNo || !/^\d{4}\//.test(dateNo)) continue;
     const dueDate = _s(row[1]);
+    // 발주서조회 형식 행 필터링 (col1이 날짜가 아니면 스킵)
+    if (dueDate && !/^\d{4}[\/-]/.test(dueDate)) continue;
     // status 추정: 납기일이 오늘 이전이면 완료, 아니면 진행중
     let status = '';
     if (dueDate) {
