@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>BeaverWorks SCM v12.0 (Web)</title>
+<title>BeaverWorks 통합관리 v12.0 (Web)</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <style>
@@ -101,7 +101,7 @@ function _showLogin(msg){
   el.innerHTML=`<div style="display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%)">
     <div style="background:#fff;border-radius:16px;padding:40px;box-shadow:0 20px 60px rgba(0,0,0,.3);text-align:center;min-width:320px">
       <div style="font-size:28px;margin-bottom:8px">📊</div>
-      <h2 style="margin:0 0 4px;font-size:18px;color:#1e293b">SCM Dashboard</h2>
+      <h2 style="margin:0 0 4px;font-size:18px;color:#1e293b">BeaverWorks 통합관리</h2>
       <p style="margin:0 0 24px;font-size:12px;color:#94a3b8">비버웍스 공급망관리 시스템</p>
       ${msg?`<p style="color:#ef4444;font-size:12px;margin-bottom:12px">${msg}</p>`:''}
       <input type="password" id="pw-input" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')_doLogin()"
@@ -646,7 +646,7 @@ function sidebar(){
     const ss=calcSS(i.sku_id);const eq=mio[i.sku_id]&&mio[i.sku_id][lastMk]?mio[i.sku_id][lastMk].eq:i.qty;
     return eq<=ss&&ss>0;
   }).length:0;
-  return`<nav class="sidebar" role="navigation" aria-label="메인 내비게이션"><div class="sidebar-hdr"><h1>BeaverWorks SCM</h1><p>수발주 및 재고관리 v12.0 (Web)</p></div>
+  return`<nav class="sidebar" role="navigation" aria-label="메인 내비게이션"><div class="sidebar-hdr"><h1>BeaverWorks</h1><p>통합관리 v12.0 (Web)</p></div>
   <div class="nav">${items.map(i=>`<div class="ni ${S.pg===i.id?'active':''}" data-pg="${i.id}" role="button" tabindex="0"${S.pg===i.id?' aria-current="page"':''}><span class="ic" aria-hidden="true">${i.ic}</span><span>${i.lb}</span>${i.id==='inventory'&&alertCnt>0?`<span style="margin-left:auto;background:var(--rd);color:#fff;border-radius:8px;padding:1px 6px;font-size:9px" aria-label="부족 ${alertCnt}건">${alertCnt}</span>`:''}</div>`).join('')}</div>
   <div style="padding:10px;border-top:1px solid var(--bd);font-size:10px;color:var(--tx2)">기준일: ${(()=>{
     if(S.selMonth==='all'){return S.selYear==='2025'?'2025-12-31':'2026-03-31'}

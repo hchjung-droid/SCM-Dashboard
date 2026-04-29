@@ -1,5 +1,5 @@
 /**
- * SCM Dashboard — Data Loader (JS port of scm_parser.py)
+ * BeaverWorks 통합관리 — Data Loader (JS port of scm_parser.py)
  * ========================================================
  * Google Sheets CSV → RAW_DATA 객체 생성
  *
@@ -1094,7 +1094,7 @@ async function loadAllData(onProgress) {
 // ============================================================
 // 12. 캐시 + 오프라인 FALLBACK
 // ============================================================
-const CACHE_KEY = 'scm_dashboard_cache';
+const CACHE_KEY = 'bw_dashboard_cache';
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24시간
 
 function saveToCache(data) {
